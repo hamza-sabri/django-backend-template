@@ -15,6 +15,7 @@ import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 import os
+import sys
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -62,6 +63,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "django_filters",
     "corsheaders",
+    "simple_history",  # opt-in per model via `setup_model --history`
     # Local
     "apps.core",
     "apps.accounts",
@@ -78,6 +80,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Records the acting user on history rows (for models using --history).
+    "simple_history.middleware.HistoryRequestMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -104,13 +108,22 @@ ASGI_APPLICATION = "config.asgi.application"
 # ---------------------------------------------------------------------------
 # Database — Postgres only (Neon in production). No sqlite, ever.
 # DATABASE_URL is required; the app refuses to start without it.
+#
+# Exception: the `init` setup wizard runs BEFORE .env exists (it writes it), so
+# settings must import for that one command using a throwaway placeholder that
+# is never connected to.
 # ---------------------------------------------------------------------------
+_BOOTSTRAP = len(sys.argv) > 1 and sys.argv[1] == "init"
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 if not DATABASE_URL:
-    raise ImproperlyConfigured(
-        "DATABASE_URL is required. Point it at your Postgres/Neon database, e.g.\n"
-        "  postgres://user:pass@host/dbname?sslmode=require"
-    )
+    if _BOOTSTRAP:
+        DATABASE_URL = "postgres://placeholder:placeholder@localhost:5432/placeholder"
+    else:
+        raise ImproperlyConfigured(
+            "DATABASE_URL is required. Point it at your Postgres/Neon database, e.g.\n"
+            "  postgres://user:pass@host/dbname?sslmode=require\n"
+            "Tip: run `python manage.py init` to generate your .env."
+        )
 DATABASES = {
     "default": dj_database_url.parse(
         DATABASE_URL,

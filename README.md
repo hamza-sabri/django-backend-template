@@ -8,16 +8,25 @@
 
 **Stop scaffolding the same backend for the hundredth time.** 🥱
 
-This is a batteries-included seed for **Django + DRF** backends — the boring-but-
-essential 80% (auth, docs, storage, caching, tasks, a pretty admin) already wired
-up and tested — plus a little ✨ magic ✨: a code generator that turns *"I need a
-Products API"* into a real, documented, paginated endpoint in about 15 seconds.
+This is a batteries-included seed **and a tiny CLI workflow** for **Django + DRF**
+backends — the boring-but-essential 80% (auth, docs, storage, caching, tasks, a
+pretty admin) already wired up and tested — plus a little ✨ magic ✨: commands
+that turn *"I need a Products API"* into a real, documented, paginated endpoint in
+about 15 seconds.
 
 > Write a model. Run one command. Get a full CRUD API. Go get coffee. ☕
 
 <p align="center">
   <img src="docs/scaffolder-demo.gif" alt="From a Django model to a live, documented CRUD API with one command" width="840">
 </p>
+
+### 🧑‍💻 + 🤖 For developers *and* agents
+
+This is built for both. **Developers** get a clean, documented, one-click starting
+point. **AI agents** get a [`CLAUDE.md`](CLAUDE.md) playbook plus a small set of
+CLI commands (`init`, `newapp`, `setup_model`) they can drive end-to-end — so
+"spin me up a backend with these models" actually works, whether a human or an
+agent is at the keyboard.
 
 Click **`Use this template`** on GitHub and your next project starts at the finish
 line.
@@ -36,12 +45,13 @@ line.
 8. [📊 Defaults reference](#-defaults-reference)
 9. [🛠️ Management commands](#️-management-commands)
 10. [🪄 The scaffolding workflow](#-the-scaffolding-workflow)
-11. [👤 User model & profile image](#-user-model--profile-image)
-12. [🔐 Authentication & API usage](#-authentication--api-usage)
-13. [📁 File uploads & storage](#-file-uploads--storage)
-14. [📚 API documentation](#-api-documentation)
-15. [🚢 Deployment](#-deployment)
-16. [📝 License](#-license)
+11. [🔒 API security & authorization](#-api-security--authorization)
+12. [👤 User model & profile image](#-user-model--profile-image)
+13. [🔐 Authentication & API usage](#-authentication--api-usage)
+14. [📁 File uploads & storage](#-file-uploads--storage)
+15. [📚 API documentation](#-api-documentation)
+16. [🚢 Deployment](#-deployment)
+17. [📝 License](#-license)
 
 ---
 
@@ -54,6 +64,7 @@ Everything below is already done, wired, and green. You just build your product 
 - 🔐 **JWT auth** (simplejwt): register, login, refresh, logout (blacklist), and `me` — with refresh-token rotation.
 - 📚 **Auto-generated OpenAPI docs** (drf-spectacular): Swagger UI **and** ReDoc, always in sync with your code.
 - 📄 **Pagination, filtering, search & ordering** on tap, DRF-wide.
+- 🕓 **Timestamps & audit trail** — every model inherits `TimeStampedModel` (`created_at`/`updated_at`), with opt-in change history (`django-simple-history`) via `setup_model --history`.
 - 🪄 **A code generator**: `newapp` + `setup_model` scaffold an app and a full CRUD API (serializer, viewset, router, admin, migrations) straight from your model.
 - 🎨 **Jazzmin** admin — because the default admin deserves better.
 - 🐘 **Neon / Postgres** via `DATABASE_URL`. Postgres always. No sqlite. Ever. 🚫
@@ -74,6 +85,7 @@ Everything below is already done, wired, and green. You just build your product 
 | ⚡ Cache | Local-memory, or Redis via django-redis |
 | 🔄 Tasks | Celery (optional) |
 | 🚨 Errors | Sentry (optional) |
+| 🕓 Audit | `TimeStampedModel` base + django-simple-history (opt-in) |
 | 🗂️ Static | WhiteNoise |
 | 🦄 Server | gunicorn |
 
@@ -94,10 +106,11 @@ From zero to a running, documented API in five commands:
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Configure. Copy the example and set SECRET_KEY and DATABASE_URL
-#    (your Postgres/Neon URL) — both are required. A Neon branch works for
-#    local dev. Other keys are optional.
-cp .env.example .env
+# 2. Configure — the wizard writes your .env (SECRET_KEY auto-generated):
+python manage.py init
+#    ...one-liner alternative:
+#    python manage.py init -d "<DATABASE_URL>" -b <b2-bucket> --domain <domain> --yes
+#    ...or DIY: cp .env.example .env  and edit it by hand
 
 # 3. Create the database schema and an admin user.
 python manage.py migrate
@@ -113,6 +126,80 @@ Now go poke at it:
 - 📘 ReDoc → <http://127.0.0.1:8000/api/docs/redoc/>
 - 🎨 Admin → <http://127.0.0.1:8000/admin/>
 - 🔑 Login → `POST http://127.0.0.1:8000/api/v1/auth/login/` with `{username, password}`
+
+### 🧙 The setup wizard (`init`)
+
+`python manage.py init` bootstraps your `.env` so you never hand-edit config.
+
+**Interactive** — prompts for each value with sensible defaults:
+
+```bash
+python manage.py init
+```
+
+**Flag-driven** — a one-liner for the README / CI / repeatable setups:
+
+```bash
+python manage.py init \
+  -d "postgres://user:pass@host/db?sslmode=require" \
+  -b my-b2-bucket \
+  --domain api.example.com \
+  --yes
+```
+
+`SECRET_KEY` is auto-generated when you don't pass one; any value you omit falls
+back to a default (blank = feature off). Handy flags:
+
+| Flag | Sets | Notes |
+|---|---|---|
+| `-d, --database` | `DATABASE_URL` | Required (Postgres/Neon). |
+| `-s, --secret` | `SECRET_KEY` | Omit to auto-generate. |
+| `-b, --bucket` | `B2_BUCKET_NAME` | Plus `--b2-key-id`, `--b2-app-key`, `--b2-endpoint`, `--b2-region`. |
+| `-r, --redis` | `REDIS_URL` | Blank = in-memory cache. |
+| `--sentry` | `SENTRY_DSN` | Blank = disabled. |
+| `--domain` | `DOMAIN` | For the Dokploy/Traefik deploy. |
+| `--debug` | `DEBUG=True` | Development only. |
+| `--yes` | — | Non-interactive (flags + defaults). |
+| `--force` | — | Overwrite an existing `.env`. |
+| `--migrate` | — | Run migrations right after writing `.env`. |
+
+> 🐘 **No `-d`? You still get a database.** Skip `--database` and the wizard
+> configures a **local Postgres** named after your project folder (e.g. `pharma`)
+> and tries to create it for you — perfect for local dev. It needs a local
+> Postgres running (defaults to user/password `postgres`; override with
+> `--db-user`, `--db-password`, `--db-host`, `--db-port`, `--db-name`, or skip
+> creation with `--no-create-db`). **For production, always pass `-d` with your
+> Neon URL.** No sqlite sneaks in — this elephant never forgets, and it's still
+> faster than your ORM's N+1 queries. 🐘💨
+
+<p align="center">
+  <img src="docs/setup-demo.gif" alt="One command sets up the project: init writes .env, then migrate, runserver, live Swagger docs and the admin panel" width="860">
+</p>
+
+### 🤖 Or just ask an agent
+
+Thanks to [`CLAUDE.md`](CLAUDE.md), you don't even have to run the commands
+yourself. Point a capable coding agent (Claude & friends) at a fresh clone and
+ask, in plain English:
+
+> **“I want to build a backend for a pharmacy. Set up the right models, migrations,
+> and everything using this template — do it all for me.”**
+
+The agent reads `CLAUDE.md` and works the template's playbook end to end:
+
+1. 🧙 Runs `python manage.py init` — writes `.env`, auto-generates `SECRET_KEY`,
+   and falls back to a local Postgres if you didn't hand it a Neon URL.
+2. 🏗️ Creates the domain apps (`python manage.py newapp pharmacy`, …) and writes
+   the models it inferred — e.g. `Medication`, `Supplier`, `Prescription`,
+   `Inventory` — each inheriting `TimeStampedModel`.
+3. ⚙️ Scaffolds each API with `python manage.py setup_model pharmacy Medication`,
+   reaching for `-a` (admin-only writes) or `--history` (audit trail) where it
+   makes sense.
+4. 🗃️ Runs `migrate` and hands you a running, documented backend at `/api/docs/`
+   with a themed admin at `/admin/`.
+
+You describe the domain; the agent drives the CLI — the exact commands a human
+would run, minus the typing. ⚡
 
 ---
 
@@ -179,6 +266,9 @@ default. 👍
 | `DATABASE_URL` | ✅ **Yes** | — | Postgres/Neon URL, e.g. `postgres://user:pass@host/db?sslmode=require`. The app won't start without it. **No sqlite fallback.** |
 | `DB_CONN_MAX_AGE` | No | `600` | Persistent connection lifetime (seconds). |
 | `DB_SSL_REQUIRE` | No | `False` | Force SSL to the DB (Neon URLs usually carry `sslmode=require` already). |
+
+> 🗄️ *A SQL query and a NoSQL database walk into a bar. The NoSQL one leaves
+> immediately — it couldn't find a table. We'll stick with Postgres, thanks.*
 
 ### 🔐 Auth / JWT
 
@@ -280,6 +370,10 @@ and each service turns on the instant you give it keys. No key, no crash. 😌
 | 🚨 Sentry | `SENTRY_DSN` | Error tracking simply off. |
 | 📁 Backblaze B2 | `B2_*` (all four) | Files saved to the local filesystem (`/media`). |
 | ⚡ Redis | `REDIS_URL` | In-memory cache; a Redis outage never returns a 500 (`IGNORE_EXCEPTIONS`). |
+
+> 🧠 *There are only two hard problems in computer science: cache invalidation,
+> naming things, and off-by-one errors. This template quietly handles the first;
+> you're on your own for naming that `utils.py`.*
 | 🔄 Celery | `CELERY_BROKER_URL` or `REDIS_URL` | Tasks run eagerly / are skipped; nothing crashes. |
 
 ---
@@ -318,7 +412,17 @@ and each service turns on the instant you give it keys. No key, no crash. 😌
 
 ## 🛠️ Management commands
 
-### 🪄 Custom generators
+### 🪄 Custom commands
+
+#### `init` — configure the project (setup wizard)
+
+```bash
+python manage.py init                              # interactive
+python manage.py init -d <url> -b <bucket> --yes   # flag-driven
+```
+
+Writes your `.env` (auto-generates `SECRET_KEY`). Full flag list in
+[The setup wizard](#-the-setup-wizard-init).
 
 #### `newapp` — create a new, fully-wired app
 
@@ -335,9 +439,13 @@ auto-discovery — mounts it under `/api/v1/`. Zero edits to `config/`. ✨
 #### `setup_model` — generate a full CRUD API from a model
 
 ```bash
-python manage.py setup_model <app> <Model> [--no-migrations]
-# example
+python manage.py setup_model <app> <Model> [-a] [--history] [--no-migrations]
+# reads public, writes require auth (default)
 python manage.py setup_model catalog Product
+# reads public, writes admin-only
+python manage.py setup_model catalog Product -a
+# track full change history (who / what / when)
+python manage.py setup_model catalog Product --history
 ```
 
 Point it at a model you already wrote and it generates + wires:
@@ -348,6 +456,10 @@ Point it at a model you already wrote and it generates + wires:
 - 🧑‍💼 an admin registration with sensible `list_display`, `search_fields`, `list_filter`,
 
 then runs `makemigrations` (skip with `--no-migrations`).
+
+By default the API is public to read and requires authentication to write; add
+`-a` for admin-only writes. See [API security & authorization](#-api-security--authorization).
+Add `--history` to record every change (who/what/when) via django-simple-history.
 
 ♻️ It's **idempotent**: existing classes are left untouched, so re-running is
 safe. Generated code slots in at `# <scaffold:...>` anchors, so your
@@ -414,6 +526,53 @@ python manage.py migrate
 
 Need another model? Add it and run `setup_model catalog <Other>` again — the
 generator appends, never overwrites. 🧩
+
+### 🕓 Timestamps & change history
+
+Every model should inherit **`TimeStampedModel`** (`apps/core/models.py`) so each
+table gets `created_at` / `updated_at` for free — `newapp` scaffolds models that
+way, and `setup_model` nudges you if you forget. Need a real audit trail (who
+changed what, and when)? Add **`--history`** and the model gets
+`django-simple-history` tracking plus a history-aware admin:
+
+```bash
+python manage.py setup_model catalog Product --history
+```
+
+The package ships in `requirements.txt` by default, but nothing is tracked until
+you opt in — because keeping history on *everything* is how you end up explaining
+a 40 GB audit table to your DBA. 📼
+
+---
+
+## 🔒 API security & authorization
+
+Generated endpoints ship with safe, explicit defaults — so you never *accidentally*
+expose writes, and you always know exactly who can do what.
+
+| Operation | Default | With `setup_model -a` (`--admin`) |
+|---|---|---|
+| **Read** (`GET` list / detail) | 🌍 Public — no token | 🌍 Public — no token |
+| **Write** (`POST` / `PUT` / `PATCH` / `DELETE`) | 🔑 Any authenticated user | 🛡️ Admin (staff) only |
+
+- **Reads are public by default.** List/retrieve need no auth. This is deliberate
+  and worth telling your team — if a resource shouldn't be world-readable, tighten
+  its viewset's `permission_classes`.
+- **Writes always require authentication.** Create/update/delete reject anonymous
+  requests out of the box.
+- **`-a` / `--admin`** restricts writes to staff users (uses `IsAdminOrReadOnly`):
+
+  ```bash
+  python manage.py setup_model catalog Product -a
+  ```
+
+- The **Django admin panel** (`/admin/`) is always full-access for staff users,
+  independent of the API rules above.
+
+Need a different policy (fully public, fully locked, per-object ownership)? Edit the
+generated `permission_classes`, or reuse the ready-made classes in
+`apps/core/permissions.py`: `IsAdminOrReadOnly`, `IsOwnerOrReadOnly`,
+`IsSelfOrAdmin`.
 
 ---
 
@@ -609,5 +768,7 @@ ship it, make it yours. ❤️
 <div align="center">
 
 **Built to be reused.** ♻️ Star it if it saved you an afternoon. ⭐
+
+*A SQL query walks into a bar, spots two tables, and asks: “Mind if I JOIN you?” 🍻*
 
 </div>
