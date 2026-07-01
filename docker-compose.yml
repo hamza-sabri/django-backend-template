@@ -1,0 +1,26 @@
+# Compose file for VPS / Dokploy-style deploys.
+#
+# Postgres is EXTERNAL (Neon) via DATABASE_URL in your .env — there is no db
+# service here on purpose. Set your env in .env (or the platform dashboard).
+
+services:
+  web:
+    build: .
+    env_file: .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # --- Optional: uncomment only if you use Redis cache and/or Celery tasks ---
+  # redis:
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #
+  # worker:
+  #   build: .
+  #   env_file: .env
+  #   command: celery -A config worker -l info
+  #   depends_on:
+  #     - redis
+  #   restart: unless-stopped
+  #   # Then set REDIS_URL=redis://redis:6379/0 in .env to wire cache + broker.

@@ -37,8 +37,7 @@ line.
 13. [📁 File uploads & storage](#-file-uploads--storage)
 14. [📚 API documentation](#-api-documentation)
 15. [🚢 Deployment](#-deployment)
-16. [🎁 Making this a GitHub template](#-making-this-a-github-template)
-17. [📝 License](#-license)
+16. [📝 License](#-license)
 
 ---
 
@@ -545,31 +544,56 @@ client codegen with `python manage.py spectacular --file schema.yml`.
 
 ## 🚢 Deployment
 
-1. 🔑 Set real environment variables on your host (never commit `.env`):
-   `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, `DATABASE_URL` (Neon), plus any
-   optional keys you use.
-2. 🛡️ With `DEBUG=False`, security hardening turns on automatically (SSL redirect,
-   HSTS, secure cookies).
-3. 🧾 The `Procfile` provides:
-   - `web` → `gunicorn config.wsgi`
-   - `release` → `python manage.py migrate` (run on deploy)
-   - `worker` → `celery -A config worker` (only if you use Celery)
-4. 🗂️ Static files are handled by WhiteNoise; run `collectstatic` in your build.
+It ships with a **Dockerfile**, so it runs anywhere containers do — a VPS via
+**Dokploy** (my usual), or Railway, Render, Fly.io, Heroku, AWS (ECS / App
+Runner), Azure (Container Apps), Google Cloud Run, Kubernetes… same image
+everywhere. 🐳
 
----
-
-## 🎁 Making this a GitHub template
-
-Push the repo, then on GitHub:
-**Settings → General → check "Template repository."** ✅
-After that, **Use this template → Create a new repository** seeds a fresh project
-from this seed.
+### 🐳 With Docker (recommended — covers most platforms)
 
 ```bash
-git branch -M main
-git remote add origin git@github.com:<you>/django-backend-template.git
-git push -u origin main
+# Build
+docker build -t my-backend .
+
+# Run (pass your real env — DATABASE_URL is required)
+docker run --env-file .env -p 8000:8000 my-backend
 ```
+
+What the image does for you:
+
+- 📦 runs `collectstatic` at **build** time (WhiteNoise serves static),
+- 🔀 runs `migrate` on **startup** via `entrypoint.sh`, then launches gunicorn,
+- 🔑 reads **all** config from environment variables — nothing baked in,
+- ❤️ ships a `HEALTHCHECK` hitting `/api/docs/`.
+
+### 🖥️ On a VPS with Dokploy (or plain Docker / Compose)
+
+Point Dokploy at the repo — it builds the Dockerfile and you set env vars in the
+dashboard. For Compose-based setups, a **`docker-compose.yml`** is included
+(Postgres stays external via `DATABASE_URL`; uncomment the Redis + Celery worker
+services only if you use them):
+
+```bash
+docker compose up -d --build
+```
+
+### 🚉 On Railway / Render / Fly / Heroku
+
+They auto-detect the Dockerfile. Or, for buildpack-style deploys, the included
+**`Procfile`** provides:
+
+- `web` → `gunicorn config.wsgi`
+- `release` → `python manage.py migrate` (run on deploy)
+- `worker` → `celery -A config worker` (only if you use Celery)
+
+### 🔑 Whatever the platform, set these env vars
+
+- **Required:** `SECRET_KEY`, `DATABASE_URL` (your Neon/Postgres URL), and
+  `DEBUG=False`.
+- **Recommended:** `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, plus any optional
+  integration keys (`SENTRY_DSN`, `B2_*`, `REDIS_URL`, …).
+- 🛡️ With `DEBUG=False`, security hardening (SSL redirect, HSTS, secure cookies)
+  turns on automatically.
 
 ---
 
