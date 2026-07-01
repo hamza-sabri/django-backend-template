@@ -1,35 +1,63 @@
-# syntax=docker/dockerfile:1
+# =============================================================================
+# Multi-stage Dockerfile — production image for Dokploy / VPS / any container host
+# =============================================================================
+
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
+FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Build deps for compiling wheels (psycopg2 etc.). Not carried to the runtime.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps into an isolated virtualenv for a clean copy.
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+
+# ── Stage 2: runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PORT=8000
+    PATH="/opt/venv/bin:$PATH"
+
+# Runtime libs only (no build toolchain). curl powers the healthcheck.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq5 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bring in the ready-built virtualenv from the builder stage.
+COPY --from=builder /opt/venv /opt/venv
+
+# Non-root user (also makes Dokploy's Docker Terminal behave).
+RUN groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser \
+    && echo 'export PATH="/opt/venv/bin:$PATH"' >> /home/appuser/.bashrc
 
 WORKDIR /app
 
-# Minimal runtime deps. psycopg2-binary and Pillow ship manylinux wheels, so no
-# build toolchain is needed; curl is only for the container healthcheck.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+COPY --chown=appuser:appuser . .
 
-# Install Python deps first for better layer caching.
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+# Executable entrypoint + writable dirs for the non-root user.
+RUN chmod +x entrypoint.sh \
+    && mkdir -p /app/staticfiles /app/media \
+    && chown -R appuser:appuser /app/staticfiles /app/media
 
-# App code.
-COPY . .
-
-# Collect static at build time (WhiteNoise serves them). Uses throwaway env just
-# so settings can import — collectstatic never touches the database.
-RUN SECRET_KEY=build-only DATABASE_URL=postgres://u:p@localhost:5432/db \
-    python manage.py collectstatic --noinput
+USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS "http://localhost:${PORT}/api/docs/" || exit 1
+# DB-free liveness probe — used by Docker, Dokploy, and Traefik.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -fsS http://localhost:8000/healthz/ || exit 1
 
-# Entrypoint migrates then launches gunicorn (see entrypoint.sh).
-ENTRYPOINT ["sh", "/app/entrypoint.sh"]
+# entrypoint.sh: migrate -> collectstatic -> gunicorn
+ENTRYPOINT ["./entrypoint.sh"]

@@ -27,6 +27,8 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.core.views import healthz
+
 
 def _discover_app_urls():
     """Include urls.py from every local app (except accounts, mounted below)."""
@@ -46,6 +48,8 @@ def _discover_app_urls():
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    # Liveness probe (DB-free) — used by Docker/Dokploy/Traefik health checks
+    path("healthz/", healthz, name="healthz"),
     # Auth (JWT)
     path("api/v1/auth/", include("apps.accounts.urls")),
     # OpenAPI / docs

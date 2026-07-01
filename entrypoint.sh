@@ -1,15 +1,22 @@
-#!/usr/bin/env sh
+#!/bin/sh
+# =============================================================================
+# Container entrypoint — runs before the app serves traffic.
+# Requires DATABASE_URL (and SECRET_KEY) to be set in the environment.
+# =============================================================================
 set -e
 
-# Apply database migrations (requires DATABASE_URL to be set at runtime).
-# Platforms with a dedicated "release" phase (Heroku/Railway) can run migrate
-# there instead and remove this line — running it here is safe and universal.
+echo "▶ Running migrations..."
 python manage.py migrate --noinput
 
-# Start the app. Tune with WEB_CONCURRENCY / PORT env vars.
+echo "▶ Collecting static files..."
+python manage.py collectstatic --noinput
+
+echo "▶ Starting gunicorn..."
 exec gunicorn config.wsgi:application \
-    --bind "0.0.0.0:${PORT:-8000}" \
-    --workers "${WEB_CONCURRENCY:-3}" \
-    --timeout 60 \
+    --bind 0.0.0.0:8000 \
+    --workers "${GUNICORN_WORKERS:-3}" \
+    --worker-class gthread \
+    --threads "${GUNICORN_THREADS:-2}" \
+    --timeout 120 \
     --access-logfile - \
     --error-logfile -

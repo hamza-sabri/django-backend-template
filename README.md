@@ -544,52 +544,50 @@ client codegen with `python manage.py spectacular --file schema.yml`.
 
 ## 🚢 Deployment
 
-It ships with a **Dockerfile**, so it runs anywhere containers do — a VPS via
-**Dokploy** (my usual), or Railway, Render, Fly.io, Heroku, AWS (ECS / App
-Runner), Azure (Container Apps), Google Cloud Run, Kubernetes… same image
-everywhere. 🐳
+Containerized and platform-agnostic. The primary target is a **Hostinger VPS
+running Dokploy** (Traefik reverse proxy + automatic HTTPS), but the same image
+runs on Railway, Render, Fly, Heroku, AWS, Azure, Cloud Run, or plain Docker. 🐳
 
-### 🐳 With Docker (recommended — covers most platforms)
+The image is a **multi-stage, non-root** build. On startup `entrypoint.sh`
+migrates → collects static → launches gunicorn, and the container exposes a
+DB-free liveness probe at **`/healthz/`**.
+
+### 🖥️ Dokploy on a VPS (the main path)
+
+The `Dockerfile` + `docker-compose.yml` are wired for Dokploy's Traefik proxy —
+routing and Let's Encrypt TLS are handled by the labels in the compose file.
+
+1. In **Dokploy**, create an app from this repo (Compose type).
+2. Set environment variables in the Dokploy dashboard:
+   - **Required:** `SECRET_KEY`, `DATABASE_URL` (Neon), `DEBUG=False`, and
+     `DOMAIN` (e.g. `api.example.com`).
+   - Optional: `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `SENTRY_DSN`, `B2_*`,
+     `REDIS_URL`, `GUNICORN_WORKERS`, …
+3. Point your domain's DNS at the VPS, then **Deploy**.
+
+Traefik reads the `traefik.*` labels in `docker-compose.yml`, routes `${DOMAIN}`
+to the container on port 8000, issues a Let's Encrypt cert automatically, and
+health-checks `/healthz/`. Postgres stays **external** (Neon via `DATABASE_URL`)
+— there's no `db` service. Uncomment the Redis + Celery worker services in the
+compose file only if you use them.
+
+### 🐳 Plain Docker (any host)
 
 ```bash
-# Build
 docker build -t my-backend .
-
-# Run (pass your real env — DATABASE_URL is required)
 docker run --env-file .env -p 8000:8000 my-backend
 ```
 
-What the image does for you:
+### 🚉 Railway / Render / Fly / Heroku
 
-- 📦 runs `collectstatic` at **build** time (WhiteNoise serves static),
-- 🔀 runs `migrate` on **startup** via `entrypoint.sh`, then launches gunicorn,
-- 🔑 reads **all** config from environment variables — nothing baked in,
-- ❤️ ships a `HEALTHCHECK` hitting `/api/docs/`.
+They auto-detect the Dockerfile. For buildpack-style deploys, the included
+**`Procfile`** provides `web` (gunicorn), `release` (migrate), and `worker`
+(celery, if used).
 
-### 🖥️ On a VPS with Dokploy (or plain Docker / Compose)
-
-Point Dokploy at the repo — it builds the Dockerfile and you set env vars in the
-dashboard. For Compose-based setups, a **`docker-compose.yml`** is included
-(Postgres stays external via `DATABASE_URL`; uncomment the Redis + Celery worker
-services only if you use them):
-
-```bash
-docker compose up -d --build
-```
-
-### 🚉 On Railway / Render / Fly / Heroku
-
-They auto-detect the Dockerfile. Or, for buildpack-style deploys, the included
-**`Procfile`** provides:
-
-- `web` → `gunicorn config.wsgi`
-- `release` → `python manage.py migrate` (run on deploy)
-- `worker` → `celery -A config worker` (only if you use Celery)
-
-### 🔑 Whatever the platform, set these env vars
+### 🔑 Required env everywhere
 
 - **Required:** `SECRET_KEY`, `DATABASE_URL` (your Neon/Postgres URL), and
-  `DEBUG=False`.
+  `DEBUG=False` (add `DOMAIN` for the Dokploy/Traefik path).
 - **Recommended:** `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, plus any optional
   integration keys (`SENTRY_DSN`, `B2_*`, `REDIS_URL`, …).
 - 🛡️ With `DEBUG=False`, security hardening (SSL redirect, HSTS, secure cookies)
