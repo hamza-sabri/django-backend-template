@@ -23,11 +23,12 @@ about 15 seconds.
 
 ### 🤔 Template or CLI tool?
 
-**Both — on purpose.** You clone it once (GitHub *"Use this template"*), and it
-ships a handful of `manage.py` commands that automate the boring parts: `init`
-(configure + set up the DB), `newapp` (create an app), `setup_model` (generate a
-full CRUD API from a model). The template is the house; the CLI is the power
-tools in the garage. 🧰
+**Both — on purpose.** Install the `django-backend` CLI once (`curl … | sh`),
+then run `django-backend new <name>` to scaffold a project anywhere. Each project
+ships `manage.py` commands that automate the boring parts: `init` (configure +
+set up the DB), `newapp` (create an app), `setup_model` (generate a full CRUD API
+from a model). The CLI *starts* projects; the in-project commands *build* them
+out. 🧰
 
 ### 🧑‍💻 + 🤖 For developers *and* agents
 
@@ -68,22 +69,21 @@ line.
 New here? This is everything you need to go from the template to a running,
 documented backend.
 
-### Get the code
-
-**⚡ Quickest — one line, needs only `curl`:**
+### 1. Install the CLI (once)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hamza-sabri/django-backend-template/main/install.sh | sh
 ```
 
-That downloads the template into `./my-backend` with a fresh git history — no
-GitHub account or `gh` CLI required. Want a different folder name? append it:
-`… /install.sh | sh -s my-api`.
+Installs a **`django-backend`** command to `~/.local/bin` — no GitHub account, no
+`gh`, no project folder created. Now you (and your agents) can spin up backends
+from anywhere. Update anytime with `django-backend update`.
 
-Then set it up — inside the project, the **wizard** does the rest:
+### 2. Create a project
 
 ```bash
-cd my-backend
+django-backend new my-api      # scaffold a fresh backend into ./my-api
+cd my-api
 python -m venv .venv && source .venv/bin/activate   # virtualenv
 pip install -r requirements.txt                     # dependencies
 
@@ -94,11 +94,11 @@ python manage.py runserver     # 🎉  →  http://127.0.0.1:8000/api/docs/
 ```
 
 <details>
-<summary><b>Other ways to grab the code · <code>init</code> options</b></summary>
+<summary><b>Prefer not to install anything? · <code>init</code> options</b></summary>
 
 - **GitHub UI** — click **`Use this template`** → *Create a new repository*, then clone.
 - **GitHub CLI** (if you have `gh`) — `gh repo create my-api --template hamza-sabri/django-backend-template --clone`
-- **Plain git** — `git clone https://github.com/hamza-sabri/django-backend-template my-backend`
+- **Plain git** — `git clone https://github.com/hamza-sabri/django-backend-template my-api`
 - **`init` one-liner** — `python manage.py init -d "<DATABASE_URL>" -b <bucket> --sentry <dsn> --yes`
 - **DIY config** — `cp .env.example .env` and edit it by hand.
 </details>
@@ -124,14 +124,15 @@ and it reads the playbook and drives the CLI for you.
 
 From that one line, the agent will:
 
-1. 🧙 Run `python manage.py init` to write `.env` (auto-generating `SECRET_KEY`;
+1. 🆕 Run `django-backend new pharmacy` to scaffold the project.
+2. 🧙 Run `python manage.py init` to write `.env` (auto-generating `SECRET_KEY`;
    local Postgres if you didn't give it a Neon URL).
-2. 🏗️ Create the domain apps (`newapp pharmacy`, …) and write the models it
+3. 🏗️ Create the domain apps (`newapp pharmacy`, …) and write the models it
    inferred — `Medication`, `Supplier`, `Prescription`, `Inventory` — each
    inheriting `TimeStampedModel`.
-3. ⚙️ Scaffold each API with `setup_model pharmacy Medication`, adding `-a`
+4. ⚙️ Scaffold each API with `setup_model pharmacy Medication`, adding `-a`
    (admin-only writes) or `--history` (audit trail) where it fits.
-4. 🗃️ Run `migrate` and hand you a running, documented backend at `/api/docs/`
+5. 🗃️ Run `migrate` and hand you a running, documented backend at `/api/docs/`
    with a themed admin at `/admin/`.
 
 You describe the domain; the agent does the typing. ⚡

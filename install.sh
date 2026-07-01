@@ -1,44 +1,48 @@
 #!/usr/bin/env sh
 # =============================================================================
-# django-backend-template installer
+# Installs the `django-backend` CLI system-wide (once), so you — and your
+# agents — can scaffold Django + DRF backends from anywhere.
 #
 #   curl -fsSL https://raw.githubusercontent.com/hamza-sabri/django-backend-template/main/install.sh | sh
-#   curl -fsSL https://raw.githubusercontent.com/hamza-sabri/django-backend-template/main/install.sh | sh -s my-api
 #
-# Downloads the template into a new folder (default: ./my-backend) with a fresh
-# git history. No GitHub account or `gh` CLI required — just curl + tar.
+# Then:  django-backend new my-api
 # =============================================================================
 set -e
 
-TARBALL="https://github.com/hamza-sabri/django-backend-template/archive/refs/heads/main.tar.gz"
-NAME="${1:-my-backend}"
-
-if [ -e "$NAME" ]; then
-  echo "✗ ./$NAME already exists. Pick another name:  ... | sh -s <name>"
-  exit 1
-fi
+RAW="https://raw.githubusercontent.com/hamza-sabri/django-backend-template/main"
+BIN_DIR="${DBACKEND_BIN:-$HOME/.local/bin}"
 
 command -v curl >/dev/null 2>&1 || { echo "✗ curl is required."; exit 1; }
-command -v tar  >/dev/null 2>&1 || { echo "✗ tar is required."; exit 1; }
 
-echo "▶ Downloading django-backend-template into ./$NAME ..."
-tmp="$(mktemp -d)"
-curl -fsSL "$TARBALL" | tar -xz -C "$tmp"
-mv "$tmp"/django-backend-template-* "$NAME"
-rm -rf "$tmp"
+echo "▶ Installing django-backend to $BIN_DIR ..."
+mkdir -p "$BIN_DIR"
+curl -fsSL "$RAW/bin/django-backend" -o "$BIN_DIR/django-backend"
+chmod +x "$BIN_DIR/django-backend"
 
-cd "$NAME"
-rm -rf .git
-git init -q >/dev/null 2>&1 || true
+echo "✓ Installed $("$BIN_DIR/django-backend" version 2>/dev/null || echo django-backend)"
+
+# Make sure the install dir is on PATH.
+case ":$PATH:" in
+  *":$BIN_DIR:"*) ;;
+  *)
+    echo ""
+    echo "! $BIN_DIR is not on your PATH yet. Add this line to your shell profile"
+    echo "  (~/.zshrc or ~/.bashrc), then restart your terminal:"
+    echo ""
+    echo "    export PATH=\"$BIN_DIR:\$PATH\""
+    ;;
+esac
 
 cat <<EOF
 
-✓ Created ./$NAME from django-backend-template
+Start a project — either way works:
 
-Next:
-  cd $NAME
-  python -m venv .venv && source .venv/bin/activate
-  pip install -r requirements.txt
-  python manage.py init        # writes .env (+ a local Postgres if you skip -d)
-  python manage.py migrate && python manage.py runserver
+  ▸ Ask your AI agent (it reads CLAUDE.md and drives the CLI for you):
+      "Create a Django backend called shop with Product, Order and Customer
+       models — set up migrations, REST APIs and admin using django-backend."
+
+  ▸ Or run it yourself:
+      django-backend new my-api
+
+Run 'django-backend help' for all commands.
 EOF
