@@ -80,37 +80,28 @@ That downloads the template into `./my-backend` with a fresh git history — no
 GitHub account or `gh` CLI required. Want a different folder name? append it:
 `… /install.sh | sh -s my-api`.
 
+Then set it up — inside the project, the **wizard** does the rest:
+
+```bash
+cd my-backend
+python -m venv .venv && source .venv/bin/activate   # virtualenv
+pip install -r requirements.txt                     # dependencies
+
+python manage.py init          # 🧙 the wizard: writes .env + prepares your database
+python manage.py migrate       # create the schema
+python manage.py createsuperuser
+python manage.py runserver     # 🎉  →  http://127.0.0.1:8000/api/docs/
+```
+
 <details>
-<summary><b>Other ways to grab it</b></summary>
+<summary><b>Other ways to grab the code · <code>init</code> options</b></summary>
 
 - **GitHub UI** — click **`Use this template`** → *Create a new repository*, then clone.
 - **GitHub CLI** (if you have `gh`) — `gh repo create my-api --template hamza-sabri/django-backend-template --clone`
 - **Plain git** — `git clone https://github.com/hamza-sabri/django-backend-template my-backend`
+- **`init` one-liner** — `python manage.py init -d "<DATABASE_URL>" -b <bucket> --sentry <dsn> --yes`
+- **DIY config** — `cp .env.example .env` and edit it by hand.
 </details>
-
-Then it's zero to a running, documented API:
-
-```bash
-# 0. Step into your new project (the folder the installer/clone created):
-cd my-backend
-
-# 1. Create a virtualenv and install dependencies.
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-
-# 2. Configure — the wizard writes your .env (SECRET_KEY auto-generated):
-python manage.py init
-#    ...one-liner alternative:
-#    python manage.py init -d "<DATABASE_URL>" -b <b2-bucket> --domain <domain> --yes
-#    ...or DIY: cp .env.example .env  and edit it by hand
-
-# 3. Create the database schema and an admin user.
-python manage.py migrate
-python manage.py createsuperuser
-
-# 4. Run. 🎉
-python manage.py runserver
-```
 
 Now go poke at it:
 
@@ -118,6 +109,32 @@ Now go poke at it:
 - 📘 ReDoc → <http://127.0.0.1:8000/api/docs/redoc/>
 - 🎨 Admin → <http://127.0.0.1:8000/admin/>
 - 🔑 Login → `POST http://127.0.0.1:8000/api/v1/auth/login/` with `{username, password}`
+
+### 🤖 …or just ask an agent to do all of it
+
+Because of [`CLAUDE.md`](CLAUDE.md), you don't have to run any of this yourself.
+Point a coding agent (Claude & friends) at a fresh clone, describe what you want,
+and it reads the playbook and drives the CLI for you.
+
+**📋 Example prompt** — copy, paste, tweak:
+
+> *"I want to build a backend for a pharmacy. Set up the right models, the
+> migrations, the APIs and the admin — everything — using this template. Do it
+> all for me."*
+
+From that one line, the agent will:
+
+1. 🧙 Run `python manage.py init` to write `.env` (auto-generating `SECRET_KEY`;
+   local Postgres if you didn't give it a Neon URL).
+2. 🏗️ Create the domain apps (`newapp pharmacy`, …) and write the models it
+   inferred — `Medication`, `Supplier`, `Prescription`, `Inventory` — each
+   inheriting `TimeStampedModel`.
+3. ⚙️ Scaffold each API with `setup_model pharmacy Medication`, adding `-a`
+   (admin-only writes) or `--history` (audit trail) where it fits.
+4. 🗃️ Run `migrate` and hand you a running, documented backend at `/api/docs/`
+   with a themed admin at `/admin/`.
+
+You describe the domain; the agent does the typing. ⚡
 
 ### 🧙 The setup wizard (`init`)
 
@@ -173,31 +190,6 @@ back to a default (blank = feature off). Handy flags:
 > creation with `--no-create-db`). **For production, always pass `-d` with your
 > Neon URL.** No sqlite sneaks in — this elephant never forgets, and it's still
 > faster than your ORM's N+1 queries. 🐘💨
-
-### 🤖 Or just ask an agent
-
-Thanks to [`CLAUDE.md`](CLAUDE.md), you don't even have to run the commands
-yourself. Point a capable coding agent (Claude & friends) at a fresh clone and
-ask, in plain English:
-
-> **“I want to build a backend for a pharmacy. Set up the right models, migrations,
-> and everything using this template — do it all for me.”**
-
-The agent reads `CLAUDE.md` and works the template's playbook end to end:
-
-1. 🧙 Runs `python manage.py init` — writes `.env`, auto-generates `SECRET_KEY`,
-   and falls back to a local Postgres if you didn't hand it a Neon URL.
-2. 🏗️ Creates the domain apps (`python manage.py newapp pharmacy`, …) and writes
-   the models it inferred — e.g. `Medication`, `Supplier`, `Prescription`,
-   `Inventory` — each inheriting `TimeStampedModel`.
-3. ⚙️ Scaffolds each API with `python manage.py setup_model pharmacy Medication`,
-   reaching for `-a` (admin-only writes) or `--history` (audit trail) where it
-   makes sense.
-4. 🗃️ Runs `migrate` and hands you a running, documented backend at `/api/docs/`
-   with a themed admin at `/admin/`.
-
-You describe the domain; the agent drives the CLI — the exact commands a human
-would run, minus the typing. ⚡
 
 ---
 
