@@ -15,6 +15,10 @@ Products API"* into a real, documented, paginated endpoint in about 15 seconds.
 
 > Write a model. Run one command. Get a full CRUD API. Go get coffee. ☕
 
+<p align="center">
+  <img src="docs/scaffolder-demo.gif" alt="From a Django model to a live, documented CRUD API with one command" width="840">
+</p>
+
 Click **`Use this template`** on GitHub and your next project starts at the finish
 line.
 
