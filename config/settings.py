@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     # Local
     "apps.core",
     "apps.accounts",
+    "apps.notifications",
     # <scaffold:local-apps>  (the `newapp` command registers new apps here)
 ]
 
@@ -306,6 +307,13 @@ if SENTRY_ENABLED:
         )
     except Exception:  # pragma: no cover - never let Sentry break boot
         pass
+
+# --- Firebase Cloud Messaging (push notifications) — optional ---------------
+# Provide a service-account either as a file path or inline JSON. When neither
+# is set, the notifications API still works (tokens register) but sends no-op.
+FCM_CREDENTIALS_FILE = os.getenv("FCM_CREDENTIALS_FILE", "")
+FCM_CREDENTIALS_JSON = os.getenv("FCM_CREDENTIALS_JSON", "")
+FCM_ENABLED = bool(FCM_CREDENTIALS_FILE or FCM_CREDENTIALS_JSON)
 
 # ---------------------------------------------------------------------------
 # Production hardening (auto-on when DEBUG is False)

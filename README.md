@@ -58,9 +58,10 @@ line.
 12. [👤 User model & profile image](#-user-model--profile-image)
 13. [🔐 Authentication & API usage](#-authentication--api-usage)
 14. [📁 File uploads & storage](#-file-uploads--storage)
-15. [📚 API documentation](#-api-documentation)
-16. [🚢 Deployment](#-deployment)
-17. [📝 License](#-license)
+15. [🔔 Push notifications (FCM)](#-push-notifications-fcm)
+16. [📚 API documentation](#-api-documentation)
+17. [🚢 Deployment](#-deployment)
+18. [📝 License](#-license)
 
 ---
 
@@ -158,7 +159,9 @@ python manage.py init \
 ```
 
 `SECRET_KEY` is auto-generated when you don't pass one; any value you omit falls
-back to a default (blank = feature off). Handy flags:
+back to a default (blank = feature off). When it finishes, `init` prints **only
+the integrations you haven't configured yet** — Sentry, B2, Redis, FCM, deploy
+domain — each with a one-line tip on where to get it. Handy flags:
 
 **All `init` flags** (or just run `python manage.py init --help`):
 
@@ -207,7 +210,8 @@ Everything below is already done, wired, and green. You just build your product 
 - 🪄 **A code generator**: `newapp` + `setup_model` scaffold an app and a full CRUD API (serializer, viewset, router, admin, migrations) straight from your model.
 - 🎨 **Jazzmin** admin — because the default admin deserves better.
 - 🐘 **Neon / Postgres** via `DATABASE_URL`. Postgres always. No sqlite. Ever. 🚫
-- 🔌 **Opt-in integrations** — Sentry, Backblaze B2, Redis, Celery — each lights up only when configured and stays out of your way otherwise.
+- 🔔 **Push notifications** — FCM built in: register device tokens and send to one user or everyone, with a couple of helper calls. Off (no-op) until you add credentials.
+- 🔌 **Opt-in integrations** — Sentry, Backblaze B2, Redis, Celery, FCM — each lights up only when configured and stays out of your way otherwise.
 - 🛡️ **Production hardening** (HSTS, secure cookies, SSL redirect) that switches on the moment `DEBUG=False`.
 - ⚙️ WhiteNoise, CORS, gunicorn, and a ready `Procfile`.
 
@@ -224,6 +228,7 @@ Everything below is already done, wired, and green. You just build your product 
 | ⚡ Cache | Local-memory, or Redis via django-redis |
 | 🔄 Tasks | Celery (optional) |
 | 🚨 Errors | Sentry (optional) |
+| 🔔 Push | FCM via firebase-admin (optional) |
 | 🕓 Audit | `TimeStampedModel` base + django-simple-history (opt-in) |
 | 🗂️ Static | WhiteNoise |
 | 🦄 Server | gunicorn |
@@ -385,6 +390,15 @@ default. 👍
 | `CELERY_BROKER_URL` | falls back to `REDIS_URL` | Broker/result backend. |
 | `CELERY_TASK_ALWAYS_EAGER` | `False` | `True` runs tasks inline (handy in dev / no worker). |
 
+**🔔 FCM push notifications** — wakes up when a service account is provided.
+
+| Key | Default | How to obtain |
+|---|---|---|
+| `FCM_CREDENTIALS_FILE` | empty | Path to a Firebase service-account JSON. |
+| `FCM_CREDENTIALS_JSON` | empty | Or the JSON inline (one line) — handy on hosted platforms. |
+
+Firebase console → Project settings → **Service accounts** → *Generate new private key*.
+
 ### ➕ How to add keys
 
 1. **🖥️ Local dev:** put them in `.env` (git-ignored). Restart `runserver`.
@@ -408,6 +422,7 @@ and each service turns on the instant you give it keys. No key, no crash. 😌
 > naming things, and off-by-one errors. This template quietly handles the first;
 > you're on your own for naming that `utils.py`.*
 | 🔄 Celery | `CELERY_BROKER_URL` or `REDIS_URL` | Tasks run eagerly / are skipped; nothing crashes. |
+| 🔔 FCM push | `FCM_CREDENTIALS_FILE` or `FCM_CREDENTIALS_JSON` | Devices still register; sends no-op with `{"enabled": false}`. |
 
 ---
 
@@ -738,6 +753,57 @@ default storage:
 Helpers in `apps/core/storage.py` (`save_bytes`, `file_url`, `delete_file`,
 `presigned_url`) work against whichever backend is active — your code doesn't
 change between local and B2. 🎯
+
+---
+
+## 🔔 Push notifications (FCM)
+
+Send push notifications with Firebase Cloud Messaging — to **one user** or to
+**everyone** — in a couple of lines. Like every optional integration it's **off
+by default**: device registration still works, and sends simply no-op until you
+add credentials.
+
+**Enable it:** set `FCM_CREDENTIALS_FILE` (path to a Firebase service-account
+JSON) or `FCM_CREDENTIALS_JSON` (the JSON inline). Get it from the Firebase
+console → Project settings → **Service accounts** → *Generate new private key*.
+
+### Register a device (from your app)
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/notifications/devices/ \
+  -H "Authorization: Bearer <access>" -H "Content-Type: application/json" \
+  -d '{"token":"<fcm-registration-token>","platform":"android"}'
+```
+
+Tokens are stored per user (`DeviceToken`), de-duplicated, and auto-deactivated
+when FCM reports them as unregistered.
+
+### Send from your code
+
+```python
+from apps.notifications import fcm
+
+fcm.send_to_user(user, "Order shipped", "Your order #1234 is on its way 📦")
+fcm.send_to_all("We're live!", "New features just dropped.")
+fcm.send_to_users(staff_users, "Heads up", "Admin notice", data={"screen": "dashboard"})
+# → {"sent": 3, "failed": 0, "enabled": True}   (or {"enabled": False} when off)
+```
+
+### Send from the API (admin only)
+
+```bash
+# to one user (user_id):
+curl -X POST http://127.0.0.1:8000/api/v1/notifications/send/ \
+  -H "Authorization: Bearer <admin-access>" -H "Content-Type: application/json" \
+  -d '{"title":"Hi","body":"Just you","user_id":42}'
+
+# to everyone (omit user_id):
+curl -X POST http://127.0.0.1:8000/api/v1/notifications/send/ \
+  -H "Authorization: Bearer <admin-access>" -H "Content-Type: application/json" \
+  -d '{"title":"Announcement","body":"Hello all"}'
+```
+
+Device tokens are manageable in the Jazzmin admin, and both endpoints are in Swagger.
 
 ---
 

@@ -57,6 +57,20 @@ FIELDS = [
      "prompt": "Sentry DSN (blank = disabled)", "default": ""},
 ]
 
+# For the post-init "what's still missing" report. (label, env keys, how-to tip)
+INTEGRATION_TIPS = [
+    ("Sentry — error tracking", ["SENTRY_DSN"],
+     "sentry.io → your project → Settings → Client Keys (DSN)"),
+    ("Backblaze B2 — file storage (uploads)", ["B2_KEY_ID", "B2_APPLICATION_KEY", "B2_BUCKET_NAME", "B2_ENDPOINT_URL"],
+     "backblaze.com → B2 → create a bucket + an Application Key"),
+    ("Redis — cache / Celery broker", ["REDIS_URL"],
+     "a Redis URL (Upstash / Redis Cloud), or redis://localhost:6379/0 locally"),
+    ("Push notifications — FCM", ["FCM_CREDENTIALS_FILE", "FCM_CREDENTIALS_JSON"],
+     "Firebase console → Project settings → Service accounts → Generate new private key"),
+    ("Deploy domain — Dokploy/Traefik", ["DOMAIN"],
+     "the hostname you'll deploy to, e.g. api.example.com"),
+]
+
 
 class Command(BaseCommand):
     help = "Interactive/flag-driven wizard that writes your .env."
@@ -178,6 +192,8 @@ class Command(BaseCommand):
             if not opts["no_create_db"]:
                 self._create_database(name, user, pw, host, port)
 
+        self._report_missing(values)
+
         if opts["migrate"] and values["DATABASE_URL"]:
             self.stdout.write("\nRunning migrations...")
             subprocess.run([sys.executable, "manage.py", "migrate"], cwd=base, check=False)
@@ -248,3 +264,20 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"  Is local Postgres running? Create it yourself with:  createdb {name}\n"
                 f"  ...or pass --db-user/--db-password, or use -d <full DATABASE_URL>.")
+
+    def _report_missing(self, values):
+        """List only the optional integrations that are still unconfigured."""
+        missing = [
+            (label, keys, tip)
+            for (label, keys, tip) in INTEGRATION_TIPS
+            if not any((values.get(k) or "").strip() for k in keys)
+        ]
+        if not missing:
+            self.stdout.write(self.style.SUCCESS("\nAll optional integrations are configured. 🎉"))
+            return
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            "\nNot configured yet (optional — add to .env when you need them):"))
+        for label, keys, tip in missing:
+            self.stdout.write(f"  • {label}")
+            self.stdout.write(self.style.HTTP_INFO(f"      set:  {', '.join(keys)}"))
+            self.stdout.write(f"      how:  {tip}")
