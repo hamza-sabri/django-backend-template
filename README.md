@@ -68,19 +68,31 @@ line.
 New here? This is everything you need to go from the template to a running,
 documented backend.
 
-**Grab your own copy.** On GitHub, click the green **`Use this template`** button
-(top-right of the repo) → **Create a new repository**, name your project, then
-clone it. Prefer the CLI? One line:
+### Get the code
+
+**⚡ Quickest — one line, needs only `curl`:**
 
 ```bash
-gh repo create my-api --template <you>/django-backend-template --clone && cd my-api
+curl -fsSL https://raw.githubusercontent.com/hamza-sabri/django-backend-template/main/install.sh | sh
 ```
 
-Then it's zero to a running, documented API in five commands:
+That downloads the template into `./my-backend` with a fresh git history — no
+GitHub account or `gh` CLI required. Want a different folder name? append it:
+`… /install.sh | sh -s my-api`.
+
+<details>
+<summary><b>Other ways to grab it</b></summary>
+
+- **GitHub UI** — click **`Use this template`** → *Create a new repository*, then clone.
+- **GitHub CLI** (if you have `gh`) — `gh repo create my-api --template hamza-sabri/django-backend-template --clone`
+- **Plain git** — `git clone https://github.com/hamza-sabri/django-backend-template my-backend`
+</details>
+
+Then it's zero to a running, documented API:
 
 ```bash
-# 0. You're inside your freshly-cloned project:
-cd my-api
+# 0. Step into your new project (the folder the installer/clone created):
+cd my-backend
 
 # 1. Create a virtualenv and install dependencies.
 python -m venv .venv && source .venv/bin/activate
