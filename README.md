@@ -14,19 +14,27 @@ pretty admin) already wired up and tested — plus a little ✨ magic ✨: comma
 that turn *"I need a Products API"* into a real, documented, paginated endpoint in
 about 15 seconds.
 
-> Write a model. Run one command. Get a full CRUD API. Go get coffee. ☕
+> **One line** sets up your whole backend — database, Sentry, storage, the works —
+> then it's running locally with live API docs and a themed admin. ☕
 
 <p align="center">
-  <img src="docs/scaffolder-demo.gif" alt="From a Django model to a live, documented CRUD API with one command" width="840">
+  <img src="docs/setup-demo.gif" alt="One line configures the backend (database, Sentry, storage), migrates, and it's running locally with API docs and a themed admin panel" width="860">
 </p>
+
+### 🤔 Template or CLI tool?
+
+**Both — on purpose.** You clone it once (GitHub *"Use this template"*), and it
+ships a handful of `manage.py` commands that automate the boring parts: `init`
+(configure + set up the DB), `newapp` (create an app), `setup_model` (generate a
+full CRUD API from a model). The template is the house; the CLI is the power
+tools in the garage. 🧰
 
 ### 🧑‍💻 + 🤖 For developers *and* agents
 
 This is built for both. **Developers** get a clean, documented, one-click starting
-point. **AI agents** get a [`CLAUDE.md`](CLAUDE.md) playbook plus a small set of
-CLI commands (`init`, `newapp`, `setup_model`) they can drive end-to-end — so
-"spin me up a backend with these models" actually works, whether a human or an
-agent is at the keyboard.
+point. **AI agents** get a [`CLAUDE.md`](CLAUDE.md) playbook plus those same CLI
+commands they can drive end-to-end — so "spin me up a backend with these models"
+actually works, whether a human or an agent is at the keyboard.
 
 Click **`Use this template`** on GitHub and your next project starts at the finish
 line.
@@ -35,10 +43,10 @@ line.
 
 ## 📖 Table of contents
 
-1. [✨ Features](#-features)
-2. [🧱 Tech stack](#-tech-stack)
-3. [✅ Requirements](#-requirements)
-4. [⚡ Quick start](#-quick-start)
+1. [🚀 Getting started](#-getting-started)
+2. [✨ Features](#-features)
+3. [🧱 Tech stack](#-tech-stack)
+4. [✅ Requirements](#-requirements)
 5. [🗂️ Project structure](#️-project-structure)
 6. [🔧 Configuration — environment keys](#-configuration--environment-keys)
 7. [🔌 Optional integrations & graceful degradation](#-optional-integrations--graceful-degradation)
@@ -55,54 +63,26 @@ line.
 
 ---
 
-## ✨ Features
+## 🚀 Getting started
 
-Everything below is already done, wired, and green. You just build your product on top. 💪
+New here? This is everything you need to go from the template to a running,
+documented backend.
 
-- 🧩 **Django 5 + DRF** with a clean `config/` + `apps/` layout and one env-driven `settings.py`.
-- 👤 **Custom user model** (`accounts.User`) extending `AbstractUser` — with `phone`, `display_name`, an uploaded `avatar`, and a `profile_image_url` link, ready to reshape per project.
-- 🔐 **JWT auth** (simplejwt): register, login, refresh, logout (blacklist), and `me` — with refresh-token rotation.
-- 📚 **Auto-generated OpenAPI docs** (drf-spectacular): Swagger UI **and** ReDoc, always in sync with your code.
-- 📄 **Pagination, filtering, search & ordering** on tap, DRF-wide.
-- 🕓 **Timestamps & audit trail** — every model inherits `TimeStampedModel` (`created_at`/`updated_at`), with opt-in change history (`django-simple-history`) via `setup_model --history`.
-- 🪄 **A code generator**: `newapp` + `setup_model` scaffold an app and a full CRUD API (serializer, viewset, router, admin, migrations) straight from your model.
-- 🎨 **Jazzmin** admin — because the default admin deserves better.
-- 🐘 **Neon / Postgres** via `DATABASE_URL`. Postgres always. No sqlite. Ever. 🚫
-- 🔌 **Opt-in integrations** — Sentry, Backblaze B2, Redis, Celery — each lights up only when configured and stays out of your way otherwise.
-- 🛡️ **Production hardening** (HSTS, secure cookies, SSL redirect) that switches on the moment `DEBUG=False`.
-- ⚙️ WhiteNoise, CORS, gunicorn, and a ready `Procfile`.
-
-## 🧱 Tech stack
-
-| Area | Choice |
-|---|---|
-| 🧩 Framework | Django 5.2, DRF 3.16 |
-| 🔐 Auth | JWT (simplejwt) |
-| 📚 Docs | drf-spectacular (OpenAPI 3) |
-| 🎨 Admin | Jazzmin |
-| 🐘 DB | Postgres (Neon) via `dj-database-url` — required, no sqlite |
-| 📁 Files | Local, or Backblaze B2 via django-storages (S3 API) |
-| ⚡ Cache | Local-memory, or Redis via django-redis |
-| 🔄 Tasks | Celery (optional) |
-| 🚨 Errors | Sentry (optional) |
-| 🕓 Audit | `TimeStampedModel` base + django-simple-history (opt-in) |
-| 🗂️ Static | WhiteNoise |
-| 🦄 Server | gunicorn |
-
-## ✅ Requirements
-
-- 🐍 Python 3.11+ (3.12 recommended)
-- 📦 pip / venv
-- 🐘 A Postgres/Neon `DATABASE_URL` — **required in every environment** (no sqlite fallback; a Neon branch is perfect for local dev)
-
----
-
-## ⚡ Quick start
-
-From zero to a running, documented API in five commands:
+**Grab your own copy.** On GitHub, click the green **`Use this template`** button
+(top-right of the repo) → **Create a new repository**, name your project, then
+clone it. Prefer the CLI? One line:
 
 ```bash
-# 1. After "Use this template" on GitHub, clone your new repo, then:
+gh repo create my-api --template <you>/django-backend-template --clone && cd my-api
+```
+
+Then it's zero to a running, documented API in five commands:
+
+```bash
+# 0. You're inside your freshly-cloned project:
+cd my-api
+
+# 1. Create a virtualenv and install dependencies.
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
@@ -150,16 +130,26 @@ python manage.py init \
 `SECRET_KEY` is auto-generated when you don't pass one; any value you omit falls
 back to a default (blank = feature off). Handy flags:
 
+**All `init` flags** (or just run `python manage.py init --help`):
+
 | Flag | Sets | Notes |
 |---|---|---|
-| `-d, --database` | `DATABASE_URL` | Required (Postgres/Neon). |
-| `-s, --secret` | `SECRET_KEY` | Omit to auto-generate. |
-| `-b, --bucket` | `B2_BUCKET_NAME` | Plus `--b2-key-id`, `--b2-app-key`, `--b2-endpoint`, `--b2-region`. |
+| `-d, --database` | `DATABASE_URL` | Postgres/Neon URL. Omit → local Postgres (see below). |
+| `-s, --secret` | `SECRET_KEY` | Omit to auto-generate a strong key. |
+| `-b, --bucket` | `B2_BUCKET_NAME` | Backblaze B2 bucket for uploads. |
+| `--b2-key-id` | `B2_KEY_ID` | B2 key ID. |
+| `--b2-app-key` | `B2_APPLICATION_KEY` | B2 application key. |
+| `--b2-endpoint` | `B2_ENDPOINT_URL` | B2 S3 endpoint URL. |
+| `--b2-region` | `B2_REGION` | B2 region. |
 | `-r, --redis` | `REDIS_URL` | Blank = in-memory cache. |
-| `--sentry` | `SENTRY_DSN` | Blank = disabled. |
+| `--sentry` | `SENTRY_DSN` | Blank = error tracking off. |
 | `--domain` | `DOMAIN` | For the Dokploy/Traefik deploy. |
 | `--debug` | `DEBUG=True` | Development only. |
-| `--yes` | — | Non-interactive (flags + defaults). |
+| `--db-name` | local DB name | Default: project folder name. |
+| `--db-user` / `--db-password` | local DB creds | Default `postgres` / `postgres`. |
+| `--db-host` / `--db-port` | local DB host / port | Default `localhost` / `5432`. |
+| `--no-create-db` | — | Don't try to create the local database. |
+| `-y, --yes` | — | Non-interactive (use flags + defaults, no prompts). |
 | `--force` | — | Overwrite an existing `.env`. |
 | `--migrate` | — | Run migrations right after writing `.env`. |
 
@@ -171,10 +161,6 @@ back to a default (blank = feature off). Handy flags:
 > creation with `--no-create-db`). **For production, always pass `-d` with your
 > Neon URL.** No sqlite sneaks in — this elephant never forgets, and it's still
 > faster than your ORM's N+1 queries. 🐘💨
-
-<p align="center">
-  <img src="docs/setup-demo.gif" alt="One command sets up the project: init writes .env, then migrate, runserver, live Swagger docs and the admin panel" width="860">
-</p>
 
 ### 🤖 Or just ask an agent
 
@@ -200,6 +186,48 @@ The agent reads `CLAUDE.md` and works the template's playbook end to end:
 
 You describe the domain; the agent drives the CLI — the exact commands a human
 would run, minus the typing. ⚡
+
+---
+
+## ✨ Features
+
+Everything below is already done, wired, and green. You just build your product on top. 💪
+
+- 🧩 **Django 5 + DRF** with a clean `config/` + `apps/` layout and one env-driven `settings.py`.
+- 👤 **Custom user model** (`accounts.User`) extending `AbstractUser` — with `phone`, `display_name`, an uploaded `avatar`, and a `profile_image_url` link, ready to reshape per project.
+- 🔐 **JWT auth** (simplejwt): register, login, refresh, logout (blacklist), and `me` — with refresh-token rotation.
+- 📚 **Auto-generated OpenAPI docs** (drf-spectacular): Swagger UI **and** ReDoc, always in sync with your code.
+- 📄 **Pagination, filtering, search & ordering** on tap, DRF-wide.
+- 🕓 **Timestamps & audit trail** — every model inherits `TimeStampedModel` (`created_at`/`updated_at`), with opt-in change history (`django-simple-history`) via `setup_model --history`.
+- 🪄 **A code generator**: `newapp` + `setup_model` scaffold an app and a full CRUD API (serializer, viewset, router, admin, migrations) straight from your model.
+- 🎨 **Jazzmin** admin — because the default admin deserves better.
+- 🐘 **Neon / Postgres** via `DATABASE_URL`. Postgres always. No sqlite. Ever. 🚫
+- 🔌 **Opt-in integrations** — Sentry, Backblaze B2, Redis, Celery — each lights up only when configured and stays out of your way otherwise.
+- 🛡️ **Production hardening** (HSTS, secure cookies, SSL redirect) that switches on the moment `DEBUG=False`.
+- ⚙️ WhiteNoise, CORS, gunicorn, and a ready `Procfile`.
+
+## 🧱 Tech stack
+
+| Area | Choice |
+|---|---|
+| 🧩 Framework | Django 5.2, DRF 3.16 |
+| 🔐 Auth | JWT (simplejwt) |
+| 📚 Docs | drf-spectacular (OpenAPI 3) |
+| 🎨 Admin | Jazzmin |
+| 🐘 DB | Postgres (Neon) via `dj-database-url` — required, no sqlite |
+| 📁 Files | Local, or Backblaze B2 via django-storages (S3 API) |
+| ⚡ Cache | Local-memory, or Redis via django-redis |
+| 🔄 Tasks | Celery (optional) |
+| 🚨 Errors | Sentry (optional) |
+| 🕓 Audit | `TimeStampedModel` base + django-simple-history (opt-in) |
+| 🗂️ Static | WhiteNoise |
+| 🦄 Server | gunicorn |
+
+## ✅ Requirements
+
+- 🐍 Python 3.11+ (3.12 recommended)
+- 📦 pip / venv
+- 🐘 A Postgres/Neon `DATABASE_URL` — **required in every environment** (no sqlite fallback; a Neon branch is perfect for local dev)
 
 ---
 
@@ -461,6 +489,18 @@ By default the API is public to read and requires authentication to write; add
 `-a` for admin-only writes. See [API security & authorization](#-api-security--authorization).
 Add `--history` to record every change (who/what/when) via django-simple-history.
 
+**All `setup_model` flags** (or run `python manage.py setup_model --help`):
+
+| Flag | Effect |
+|---|---|
+| `-a, --admin` | Writes require staff/admin (reads stay public). |
+| `--history` | Track full change history (django-simple-history) + history-aware admin. |
+| `--no-migrations` | Skip the automatic `makemigrations` step. |
+
+> 💡 **Every command has `--help`.** Not sure what a command does or which flags
+> it takes? `python manage.py <command> --help` lists them all — try
+> `init --help`, `newapp --help`, or `setup_model --help`.
+
 ♻️ It's **idempotent**: existing classes are left untouched, so re-running is
 safe. Generated code slots in at `# <scaffold:...>` anchors, so your
 hand-written code lives happily in the same files.
@@ -489,6 +529,10 @@ celery -A config worker -l info
 ## 🪄 The scaffolding workflow
 
 The party trick — from *"I need a new resource"* to a live, documented API. 🎩
+
+<p align="center">
+  <img src="docs/scaffolder-demo.gif" alt="Write a model, run setup_model, and get a full documented CRUD API in seconds" width="840">
+</p>
 
 ```bash
 # 1. Create the app
